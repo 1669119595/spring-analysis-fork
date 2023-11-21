@@ -14,6 +14,7 @@ public class Bootstrap {
         SimpleAopBean bean = context.getBean(SimpleAopBean.class);
         bean.testB();
         System.out.println(bean.getClass().getSimpleName());
+
     }
 
 }
