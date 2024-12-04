@@ -352,6 +352,7 @@ if (bean != null) {
     return bean;
 }
 Object beanInstance = doCreateBean(beanName, mbdToUse, args);
+
 ```
 
 可以看出，调用发生在Bean实例的创建之前。

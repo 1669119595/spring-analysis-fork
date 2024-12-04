@@ -115,21 +115,40 @@
 
 ```java
 public static void main(String[] args) {
-    ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext("config.xml");
+    ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext("applicationContext.xml");
     SimpleBean bean = context.getBean(SimpleBean.class);
     bean.send();
     context.close();
 }
+
+
 ```
 
-SimpleBean:
+#### 其他启动方式
 
-```java
-public class SimpleBean {
-    public void send() {
-        System.out.println("I am send method from SimpleBean!");
-    }
-}
+1. 在没有使用spring-boot的情况下，需要指定配置文件路径，spring-boot自动扫描指定路径下的application.*配置文件。
+2. 使用springweb-mvc的情况下，需要在web.xml里配置contextConfigLocation参数，用于tomcat启动后，创建web容器
+
+```xml
+<servlet>
+    <servlet-name>DispatcherServlet</servlet-name>
+    <servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+    <init-param>
+      <!--导入springMVC配置文件,listener里能获取该配置参数？-->
+      <param-name>contextConfigLocation</param-name>
+      <param-value>classpath:spring-mvc.xml</param-value>
+    </init-param>
+</servlet>
+
+<!--全局初始化参数，用于给监听器传参-->
+<context-param>
+  <param-name>contextConfigLocation</param-name>
+  <param-value>classpath:applicationContext.xml</param-value>
+</context-param>
+<!--监听器-->
+<listener>
+  <listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+</listener>
 ```
 
 ## ClassPathXmlApplicationContext
@@ -149,7 +168,7 @@ public ClassPathXmlApplicationContext(String[] configLocations, boolean refresh,
     setConfigLocations(configLocations);
     //默认true
     if (refresh) {
-        refresh();
+        refresh(); // 初始化容器入口
     }
 }
 ```

@@ -148,9 +148,36 @@ active profile取自上一节中的属性来源，key为`spring.profiles.active`
 
 ## environmentPrepared
 
+```
+EventPublishingRunListener - springApplication里的runListener
+SpringApplicationRunListeners listeners = getRunListeners(args);
+发布各种springEvent去触发对应的监听器
+```
+
 ### 配置文件加载
 
-监听器ConfigFileApplicationListener负责spring-boot配置文件的加载，ConfigFileApplicationListener默认会从以下的位置搜索配置文件:
+注意很多的配置类和启动类都是配置在spring.factories里面的，通过这个方法去获取相应的类
+
+```java
+org.springframework.core.io.support.SpringFactoriesLoader#loadFactories(Class<T> factoryType, @Nullable ClassLoader classLoader)
+```
+
+##### 为什么配置类要放到spring.factories里，不会自己注册吗
+
+springBoot启动类上会加包扫描注解，根据@configuration，@Bean等注解，自动实例化并注入到容器里。
+
+但是引用的依赖jar包里不会扫描到，spring版本里需要自己配置对应jar的配置文件，并引用到applicationContext.xml里。
+
+springBoot自动配置简化了这一步骤，自动扫描META-INF下的spring.factories。反射实例化这些配置类，加入到容器里。
+
+```java
+public class SpringFactoriesLoader {
+    public static final String FACTORIES_RESOURCE_LOCATION = "META-INF/spring.factories";
+```
+
+
+
+监听器ConfigFileApplicationListener（已失效，现在用ConfigDataEnvironmentPostProcessor）负责spring-boot配置文件的加载，ConfigFileApplicationListener默认会从以下的位置搜索配置文件:
 
 1. classpath下的application.properties或application.yml
 2. file:./下的application.properties或application.yml
@@ -159,17 +186,37 @@ active profile取自上一节中的属性来源，key为`spring.profiles.active`
 
 此监听器是如何加载的?源码:
 
-```java
+EnvironmentPostProcessorApplicationListener监听器来加载processors。
+
+```
+SpringApplication#prepareEnvironment
+listeners.environmentPrepared(bootstrapContext, environment);
+监听器触发
+EnvironmentPostProcessorApplicationListener.onApplicationEvent
+
+public void onApplicationEvent(ApplicationEvent event) {
+    if (event instanceof ApplicationEnvironmentPreparedEvent) {
+        onApplicationEnvironmentPreparedEvent((ApplicationEnvironmentPreparedEvent) event);
+    }
+    if (event instanceof ApplicationPreparedEvent) {
+        onApplicationPreparedEvent();
+    }
+    if (event instanceof ApplicationFailedEvent) {
+        onApplicationFailedEvent();
+    }
+}
+调用postProcessor
 private void onApplicationEnvironmentPreparedEvent(ApplicationEnvironmentPreparedEvent event) {
-	List<EnvironmentPostProcessor> postProcessors = loadPostProcessors();
-	postProcessors.add(this);
-	AnnotationAwareOrderComparator.sort(postProcessors);
-	for (EnvironmentPostProcessor postProcessor : postProcessors) {
-		postProcessor.postProcessEnvironment(event.getEnvironment(),
-				event.getSpringApplication());
-	}
+    ConfigurableEnvironment environment = event.getEnvironment();
+    SpringApplication application = event.getSpringApplication();
+    for (EnvironmentPostProcessor postProcessor : getEnvironmentPostProcessors(application.getResourceLoader(),
+            event.getBootstrapContext())) {
+        postProcessor.postProcessEnvironment(environment, application);
+    }
 }
 ```
+
+
 
 显然核心的加载操作是通过EnvironmentPostProcessor接口实现的，此接口允许我们在context刷新之前自定义配置加载，并且Spring推荐此接口的实现类同时实现Ordered接口。类图:
 
